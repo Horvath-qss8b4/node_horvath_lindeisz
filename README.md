@@ -9,3 +9,17 @@ git clone git@github.com:Horvath-qss8b4/node_horvath_lindeisz.git
 
 npm install express mysql2 express-session bcrypt ejs path dotenv
 npx gitignore node
+
+## Base Header Bootstrap
+## Base CSS
+## Views
+- header
+    - navbar
+- Főoldal
+- Login
+- *(még nem elérhető)*
+    - database
+    - contact
+    - message
+    - CRUD
+- footer
