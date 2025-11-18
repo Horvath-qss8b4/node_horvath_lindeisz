@@ -621,6 +621,95 @@ views.crud = `
 </script>
 `;
 
+views.admin = `
+<div class="card bg-light border-danger">
+    <div class="card-body p-4 p-lg-5">
+        <h2 class="h4 mt-5">Felhasználók Listája</h2>
+        <div class="table-responsive">
+            <table class="table table-striped table-sm">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Felhasználónév</th>
+                        <th>E-mail</th>
+                        <th>Szerepkör</th>
+                        <th>Regisztrált</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (users && users.length > 0) { %>
+                        <% users.forEach(user => { %>
+                            <tr class="<%= user.role === 'admin' ? 'table-danger' : '' %>">
+                                <td><%= user.id %></td>
+                                <td><%= user.username %></td>
+                                <td><%= user.email %></td>
+                                <td><%= user.role %></td>
+                                <td><%= new Date(user.created_at).toLocaleString('hu-HU') %></td>
+                            </tr>
+                        <% }) %>
+                    <% } else { %>
+                        <tr><td colspan="5" class="text-center">Nincsenek felhasználók.</td></tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+`;
+
+function renderPage(req, res, viewName, data = {}) {
+  try {
+    const user = req.session.user;
+    const success_msg = req.session.success_msg;
+    const error_msg = req.session.error_msg;
+
+    delete req.session.success_msg;
+    delete req.session.error_msg;
+
+    const template = views.header + views[viewName] + views.footer;
+
+    const allData = {
+      ...data,
+      user: user,
+      success_msg: success_msg,
+      error_msg: error_msg,
+    };
+
+    const html = ejs.render(template, allData);
+    res.send(html);
+  } catch (err) {
+    console.error(`Hiba a(z) '${viewName}' nézet renderelése közben:`, err);
+    res.status(500).send("Hiba történt a nézet renderelése közben.");
+  }
+}
+
+function isLoggedIn(req, res, next) {
+  if (req.session.user) {
+    return next();
+  }
+  req.session.error_msg = "Az oldal megtekintéséhez bejelentkezés szükséges.";
+  res.redirect("/login");
+}
+
+function isAdmin(req, res, next) {
+  if (req.session.user && req.session.user.role === "admin") {
+    return next();
+  }
+  req.session.error_msg = "Az oldal megtekintéséhez admin jogosultság szükséges.";
+  res.redirect("/");
+}
+
+app.get("/", (req, res) => {
+  renderPage(req, res, "index");
+});
+
+app.get("/login", (req, res) => {
+  if (req.session.user) {
+    return res.redirect("/");
+  }
+  renderPage(req, res, "login");
+});
+
 // <--server kapcsolat-->
 async function startServer() {
   try {
@@ -642,7 +731,9 @@ async function startServer() {
       console.log(`A szerver fut a http://localhost:${PORT} címen`);
     });
   } catch (err) {
-    console.error("Nem sikerült csatlakozni az adatbázishoz vagy elindítani a szervert!");
+    console.error(
+      "Nem sikerült csatlakozni az adatbázishoz vagy elindítani a szervert!"
+    );
     console.error(err);
     process.exit(1);
   }
