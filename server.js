@@ -710,6 +710,148 @@ app.get("/login", (req, res) => {
   renderPage(req, res, "login");
 });
 
+app.post("/register", async (req, res) => {
+  const { username, email, password } = req.body;
+  if (!username || !email || !password) {
+    req.session.error_msg = "Minden mező kitöltése kötelező.";
+    return res.redirect("/login");
+  }
+  try {
+    const saltRounds = 10;
+    const password_hash = await bcrypt.hash(password, saltRounds);
+
+    const role = "registered";
+
+    const [result] = await db.query("INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)", [
+      username,
+      email,
+      password_hash,
+      role,
+    ]);
+
+    req.session.success_msg = "Sikeres regisztráció! Most már bejelentkezhet.";
+    res.redirect("/login");
+  } catch (err) {
+    console.error("Regisztrációs hiba:", err);
+    if (err.code === "ER_DUP_ENTRY") {
+      req.session.error_msg = "A felhasználónév vagy e-mail cím már foglalt.";
+    } else {
+      req.session.error_msg = "Hiba történt a regisztráció során.";
+    }
+    res.redirect("/login");
+  }
+});
+
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    req.session.error_msg = "Felhasználónév és jelszó megadása kötelező.";
+    return res.redirect("/login");
+  }
+  try {
+    const [rows] = await db.query("SELECT * FROM users WHERE username = ?", [username]);
+    if (rows.length === 0) {
+      req.session.error_msg = "Hibás felhasználónév vagy jelszó.";
+      return res.redirect("/login");
+    }
+
+    const user = rows[0];
+
+    const match = await bcrypt.compare(password, user.password_hash);
+    if (match) {
+      req.session.user = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+      };
+      req.session.success_msg = `Üdvözlünk, ${user.username}!`;
+      res.redirect("/");
+    } else {
+      req.session.error_msg = "Hibás felhasználónév vagy jelszó.";
+      res.redirect("/login");
+    }
+  } catch (err) {
+    console.error("Bejelentkezési hiba:", err);
+    req.session.error_msg = "Hiba történt a bejelentkezés során.";
+    res.redirect("/login");
+  }
+});
+
+app.get("/logout", (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error("Kijelentkezési hiba:", err);
+    }
+    res.redirect("/");
+  });
+});
+
+app.get("/database", async (req, res) => {
+  try {
+    const [varosok] = await db.query(`
+            SELECT v.id, v.nev, v.megyeszekhely, m.nev AS megye_nev 
+            FROM varos v 
+            JOIN megye m ON v.megyeid = m.id 
+            ORDER BY v.nev
+        `);
+    const [megyek] = await db.query("SELECT * FROM megye ORDER BY nev");
+    const [lelekszamok] = await db.query("SELECT * FROM lelekszam LIMIT 50");
+
+    renderPage(req, res, "database", {
+      varosok: varosok,
+      megyek: megyek,
+      lelekszamok: lelekszamok,
+    });
+  } catch (err) {
+    console.error("Adatbázis lekérdezési hiba:", err);
+    req.session.error_msg = "Hiba az adatok lekérdezése közben.";
+    res.redirect("/");
+  }
+});
+
+app.get("/contact", (req, res) => {
+  renderPage(req, res, "contact");
+});
+
+app.post("/contact", async (req, res) => {
+  const { name, email, subject, message } = req.body;
+  if (!name || !email || !message) {
+    req.session.error_msg = "A név, e-mail és üzenet mezők kitöltése kötelező.";
+    return res.redirect("/contact");
+  }
+  try {
+    await db.query("INSERT INTO messages (name, email, subject, message) VALUES (?, ?, ?, ?)", [
+      name,
+      email,
+      subject,
+      message,
+    ]);
+    req.session.success_msg = "Üzenetét sikeresen elküldtük és rögzítettük!";
+    res.redirect("/contact");
+  } catch (err) {
+    console.error("Üzenet mentési hiba:", err);
+    req.session.error_msg = "Hiba történt az üzenet mentése során.";
+    res.redirect("/contact");
+  }
+});
+
+app.get("/messages", isLoggedIn, async (req, res) => {
+  if (req.session.user.role === "visitor") {
+    req.session.error_msg = "Nincs jogosultsága az oldal megtekintéséhez.";
+    return res.redirect("/");
+  }
+
+  try {
+    const [messages] = await db.query("SELECT * FROM messages ORDER BY created_at DESC");
+    renderPage(req, res, "messages", { messages: messages });
+  } catch (err) {
+    console.error("Üzenetek lekérdezési hiba:", err);
+    req.session.error_msg = "Hiba az üzenetek lekérdezése közben.";
+    res.redirect("/");
+  }
+});
+
 // <--server kapcsolat-->
 async function startServer() {
   try {
@@ -731,9 +873,7 @@ async function startServer() {
       console.log(`A szerver fut a http://localhost:${PORT} címen`);
     });
   } catch (err) {
-    console.error(
-      "Nem sikerült csatlakozni az adatbázishoz vagy elindítani a szervert!"
-    );
+    console.error("Nem sikerült csatlakozni az adatbázishoz vagy elindítani a szervert!");
     console.error(err);
     process.exit(1);
   }

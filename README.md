@@ -27,7 +27,13 @@ npx gitignore node
 - CRUD
 - footer
 
-## JS backend 
+## JS backend HTTP metódusok
+
 - Render
 - Login
+- Logout
 - Auth
+- Register
+- Database
+- Contact
+- Message
