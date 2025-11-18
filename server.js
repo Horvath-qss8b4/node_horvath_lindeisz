@@ -423,6 +423,204 @@ views.contact = `
 </div>
 `;
 
+views.messages = `
+<h1 class="mb-4">Beérkezett üzenetek</h1>
+<p>Ezt az oldalt csak bejelentkezett felhasználók láthatják. Az üzenetek fordított időrendben jelennek meg.</p>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Küldés ideje</th>
+                        <th>Név</th>
+                        <th>E-mail</th>
+                        <th>Tárgy</th>
+                        <th>Üzenet</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (messages && messages.length > 0) { %>
+                        <% messages.forEach(msg => { %>
+                            <tr>
+                                <td class="text-nowrap"><%= new Date(msg.created_at).toLocaleString('hu-HU') %></td>
+                                <td><%= msg.name %></td>
+                                <td><%= msg.email %></td>
+                                <td><%= msg.subject %></td>
+                                <td><%= msg.message %></td>
+                            </tr>
+                        <% }) %>
+                    <% } else { %>
+                        <tr>
+                            <td colspan="5" class="text-center">Még nem érkezett üzenet.</td>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+`;
+
+views.crud = `
+<h1 class="mb-4">Városok Kezelése (CRUD)</h1>
+
+<div class="crud-form">
+    <h2 class="h4 mb-3" id="crud-form-title">Új város felvitele</h2>
+    <form action="/crud/add" method="POST" id="crud-form">
+        <input type="hidden" name="id" id="form-varos-id">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="form-varos-nev" class="form-label">Város neve</label>
+                <input type="text" class="form-control" id="form-varos-nev" name="nev" required>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="form-varos-megyeid" class="form-label">Megye</label>
+                <select class="form-select" id="form-varos-megyeid" name="megyeid" required>
+                    <% if (megyek && megyek.length > 0) { %>
+                        <% megyek.forEach(megye => { %>
+                            <option value="<%= megye.id %>"><%= megye.nev %></option>
+                        <% }) %>
+                    <% } %>
+                </select>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Megyeszékhely?</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="megyeszekhely" id="form-msz-igen" value="-1">
+                    <label class="form-check-label" for="form-msz-igen">Igen</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="megyeszekhely" id="form-msz-nem" value="0" checked>
+                    <label class="form-check-label" for="form-msz-nem">Nem</label>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Megyei jogú?</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="megyeijogu" id="form-mj-igen" value="-1">
+                    <label class="form-check-label" for="form-mj-igen">Igen</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="megyeijogu" id="form-mj-nem" value="0" checked>
+                    <label class="form-check-label" for="form-mj-nem">Nem</label>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary" id="crud-submit-btn">Létrehozás</button>
+            <button type="button" class="btn btn-secondary d-none" id="crud-cancel-btn">Mégse</button>
+        </div>
+    </form>
+</div>
+
+<h2 class="h4 mb-3">Városok Listája</h2>
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover table-sm">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Név</th>
+                        <th>Megye</th>
+                        <th>Megyeszékhely</th>
+                        <th>Megyei jogú</th>
+                        <th>Műveletek</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (varosok && varosok.length > 0) { %>
+                        <% varosok.forEach(varos => { %>
+                            <tr id="varos-<%= varos.id %>" 
+                                data-id="<%= varos.id %>"
+                                data-nev="<%= varos.nev %>"
+                                data-megyeid="<%= varos.megyeid %>"
+                                data-megyeszekhely="<%= varos.megyeszekhely %>"
+                                data-megyeijogu="<%= varos.megyeijogu %>">
+                                <td><%= varos.id %></td>
+                                <td><%= varos.nev %></td>
+                                <td><%= varos.megye_nev %></td>
+                                <td><%= varos.megyeszekhely === -1 ? 'Igen' : 'Nem' %></td>
+                                <td><%= varos.megyeijogu === -1 ? 'Igen' : 'Nem' %></td>
+                                <td class="text-nowrap">
+                                    <button class="btn btn-sm btn-warning btn-edit" onclick="editVaros(<%= varos.id %>)">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </button>
+                                    
+                                    <form action="/crud/delete" method="POST" class="d-inline" onsubmit="return confirm('Biztosan törölni szeretné ezt a várost?');">
+                                        <input type="hidden" name="id" value="<%= varos.id %>">
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            <i class="bi bi-trash-fill"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    <% } else { %>
+                        <tr>
+                            <td colspan="6" class="text-center">Nincsenek városok az adatbázisban.</td>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const form = document.getElementById('crud-form');
+    const formTitle = document.getElementById('crud-form-title');
+    const submitBtn = document.getElementById('crud-submit-btn');
+    const cancelBtn = document.getElementById('crud-cancel-btn');
+    const idInput = document.getElementById('form-varos-id');
+    const nevInput = document.getElementById('form-varos-nev');
+    const megyeIdSelect = document.getElementById('form-varos-megyeid');
+
+    function editVaros(id) {
+        const row = document.getElementById('varos-' + id);
+        
+        const nev = row.dataset.nev;
+        const megyeid = row.dataset.megyeid;
+        const megyeszekhely = row.dataset.megyeszekhely;
+        const megyeijogu = row.dataset.megyeijogu;
+        
+        form.action = '/crud/update';
+        formTitle.innerText = 'Város Módosítása (ID: ' + id + ')';
+        submitBtn.innerText = 'Módosítás';
+        submitBtn.classList.remove('btn-primary');
+        submitBtn.classList.add('btn-success');
+        cancelBtn.classList.remove('d-none');
+
+        idInput.value = id;
+        nevInput.value = nev;
+        megyeIdSelect.value = megyeid;
+        
+        document.querySelector(\`input[name="megyeszekhely"][value="\${megyeszekhely}"]\`).checked = true;
+        document.querySelector(\`input[name="megyeijogu"][value="\${megyeijogu}"]\`).checked = true;
+        
+        window.scrollTo(0, form.offsetTop);
+    }
+
+    cancelBtn.addEventListener('click', () => {
+        form.action = '/crud/add';
+        formTitle.innerText = 'Új Város Felvitele';
+        submitBtn.innerText = 'Létrehozás';
+        submitBtn.classList.remove('btn-success');
+        submitBtn.classList.add('btn-primary');
+        cancelBtn.classList.add('d-none');
+        
+        form.reset();
+        idInput.value = '';
+        document.getElementById('form-msz-nem').checked = true;
+        document.getElementById('form-mj-nem').checked = true;
+    });
+</script>
+`;
+
 // <--server kapcsolat-->
 async function startServer() {
   try {
