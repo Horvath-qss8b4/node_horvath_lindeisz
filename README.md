@@ -17,9 +17,9 @@ npx gitignore node
     - navbar
 - Főoldal
 - Login
+- database
+- contact
 - *(még nem elérhető)*
-    - database
-    - contact
     - message
     - CRUD
 - footer

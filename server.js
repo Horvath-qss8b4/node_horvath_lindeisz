@@ -299,6 +299,129 @@ views.database = `
 </div>
 `;
 
+views.database = `
+<h1 class="mb-4">Adatbázis adatok</h1>
+
+<h2 class="h4">Városok és megyék</h2>
+<div class="card mb-4">
+    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-striped table-sm">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Város</th>
+                    <th>Megye</th>
+                    <th>Megyeszékhely</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (varosok && varosok.length > 0) { %>
+                    <% varosok.forEach(varos => { %>
+                        <tr>
+                            <td><%= varos.id %></td>
+                            <td><%= varos.nev %></td>
+                            <td><%= varos.megye_nev %></td>
+                            <td><%= varos.megyeszekhely === -1 ? 'Igen' : 'Nem' %></td>
+                        </tr>
+                    <% }) %>
+                <% } else { %>
+                    <tr><td colspan="4" class="text-center">Nincsenek adatok az adatbázis táblában.</td></tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<h2 class="h4">Megyék</h2>
+<div class="card mb-4">
+    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-striped table-sm">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Megye</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (megyek && megyek.length > 0) { %>
+                    <% megyek.forEach(megye => { %>
+                        <tr>
+                            <td><%= megye.id %></td>
+                            <td><%= megye.nev %></td>
+                        </tr>
+                    <% }) %>
+                <% } else { %>
+                    <tr><td colspan="2" class="text-center">Nincsenek adatok az adatbázis táblában.</td></tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+<h2 class="h4">Lélekszám adatok</h2>
+<div class="card mb-4">
+    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-striped table-sm">
+            <thead>
+                <tr>
+                    <th>Város ID</th>
+                    <th>Év</th>
+                    <th>Nők száma</th>
+                    <th>Összesen</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (lelekszamok && lelekszamok.length > 0) { %>
+                    <% lelekszamok.forEach(lsz => { %>
+                        <tr>
+                            <td><%= lsz.varosid %></td>
+                            <td><%= lsz.ev %></td>
+                            <td><%= lsz.no.toLocaleString('hu-HU') %></td>
+                            <td><%= lsz.osszesen.toLocaleString('hu-HU') %></td>
+                        </tr>
+                    <% }) %>
+                <% } else { %>
+                    <tr><td colspan="4" class="text-center">Nincsenek adatok az adatbázis táblában.</td></tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>
+`;
+
+views.contact = `
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body p-4 p-lg-5">
+                <h2 class="card-title text-center mb-4">Kapcsolat</h2>
+                <p class="text-center text-muted mb-4">Küldjön nekünk üzenetet az alábbi űrlap segítségével. Az adatokat adatbázisban tároljuk.</p>
+                
+                <form action="/contact" method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Név</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">E-mail cím</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="subject" class="form-label">Tárgy</label>
+                        <input type="text" class="form-control" id="subject" name="subject">
+                    </div>
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Üzenet</label>
+                        <textarea class="form-control" id="message" name="message" rows="5" required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Üzenet küldése</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+`;
 
 // <--server kapcsolat-->
 async function startServer() {
