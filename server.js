@@ -14,6 +14,15 @@ let db;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "DV12AT0yPXBDOMzFuRvjCSo07mF0ZeLZ",
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false, maxAge: 3600000 },
+  })
+);
+
 const views = {};
 
 views.header = `
@@ -204,97 +213,6 @@ views.login = `
                 </form>
             </div>
         </div>
-    </div>
-</div>
-`;
-
-views.database = `
-<h1 class="mb-4">Adatbázis adatok</h1>
-
-<h2 class="h4">Városok és megyék</h2>
-<div class="card mb-4">
-    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-        <table class="table table-striped table-sm">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Város</th>
-                    <th>Megye</th>
-                    <th>Megyeszékhely</th>
-                </tr>
-            </thead>
-            <tbody>
-                <% if (varosok && varosok.length > 0) { %>
-                    <% varosok.forEach(varos => { %>
-                        <tr>
-                            <td><%= varos.id %></td>
-                            <td><%= varos.nev %></td>
-                            <td><%= varos.megye_nev %></td>
-                            <td><%= varos.megyeszekhely === -1 ? 'Igen' : 'Nem' %></td>
-                        </tr>
-                    <% }) %>
-                <% } else { %>
-                    <tr><td colspan="4" class="text-center">Nincsenek adatok az adatbázis táblában.</td></tr>
-                <% } %>
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<h2 class="h4">Megyék</h2>
-<div class="card mb-4">
-    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-        <table class="table table-striped table-sm">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Megye</th>
-                </tr>
-            </thead>
-            <tbody>
-                <% if (megyek && megyek.length > 0) { %>
-                    <% megyek.forEach(megye => { %>
-                        <tr>
-                            <td><%= megye.id %></td>
-                            <td><%= megye.nev %></td>
-                        </tr>
-                    <% }) %>
-                <% } else { %>
-                    <tr><td colspan="2" class="text-center">Nincsenek adatok az adatbázis táblában.</td></tr>
-                <% } %>
-            </tbody>
-        </table>
-    </div>
-</div>
-
-
-<h2 class="h4">Lélekszám adatok</h2>
-<div class="card mb-4">
-    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-        <table class="table table-striped table-sm">
-            <thead>
-                <tr>
-                    <th>Város ID</th>
-                    <th>Év</th>
-                    <th>Nők száma</th>
-                    <th>Összesen</th>
-                </tr>
-            </thead>
-            <tbody>
-                <% if (lelekszamok && lelekszamok.length > 0) { %>
-                    <% lelekszamok.forEach(lsz => { %>
-                        <tr>
-                            <td><%= lsz.varosid %></td>
-                            <td><%= lsz.ev %></td>
-                            <td><%= lsz.no.toLocaleString('hu-HU') %></td>
-                            <td><%= lsz.osszesen.toLocaleString('hu-HU') %></td>
-                        </tr>
-                    <% }) %>
-                <% } else { %>
-                    <tr><td colspan="4" class="text-center">Nincsenek adatok az adatbázis táblában.</td></tr>
-                <% } %>
-            </tbody>
-        </table>
     </div>
 </div>
 `;
@@ -852,7 +770,91 @@ app.get("/messages", isLoggedIn, async (req, res) => {
   }
 });
 
-// <--server kapcsolat-->
+app.get("/crud", isLoggedIn, async (req, res) => {
+  try {
+    const [varosok] = await db.query(`
+            SELECT v.*, m.nev AS megye_nev 
+            FROM varos v 
+            JOIN megye m ON v.megyeid = m.id 
+            ORDER BY v.nev
+        `);
+    const [megyek] = await db.query("SELECT * FROM megye ORDER BY nev");
+
+    renderPage(req, res, "crud", { varosok: varosok, megyek: megyek });
+  } catch (err) {
+    console.error("CRUD olvasási hiba:", err);
+    req.session.error_msg = "Hiba a városok listázása közben.";
+    res.redirect("/");
+  }
+});
+
+app.post("/crud/add", isLoggedIn, async (req, res) => {
+  const { nev, megyeid, megyeszekhely, megyeijogu } = req.body;
+  try {
+    await db.query("INSERT INTO varos (nev, megyeid, megyeszekhely, megyeijogu) VALUES (?, ?, ?, ?)", [
+      nev,
+      megyeid,
+      megyeszekhely,
+      megyeijogu,
+    ]);
+    req.session.success_msg = `A(z) '${nev}' nevű város sikeresen hozzáadva.`;
+  } catch (err) {
+    console.error("CRUD létrehozási hiba:", err);
+    req.session.error_msg = "Hiba az új város létrehozása közben.";
+  }
+  res.redirect("/crud");
+});
+
+app.post("/crud/update", isLoggedIn, async (req, res) => {
+  const { id, nev, megyeid, megyeszekhely, megyeijogu } = req.body;
+  try {
+    await db.query("UPDATE varos SET nev = ?, megyeid = ?, megyeszekhely = ?, megyeijogu = ? WHERE id = ?", [
+      nev,
+      megyeid,
+      megyeszekhely,
+      megyeijogu,
+      id,
+    ]);
+    req.session.success_msg = `A(z) (ID: ${id}) '${nev}' nevű város sikeresen módosítva.`;
+  } catch (err) {
+    console.error("CRUD módosítási hiba:", err);
+    req.session.error_msg = "Hiba a város módosítása közben.";
+  }
+  res.redirect("/crud");
+});
+
+app.post("/crud/delete", isLoggedIn, async (req, res) => {
+  const { id } = req.body;
+  try {
+    const [rows] = await db.query("SELECT nev FROM varos WHERE id = ?", [id]);
+    const nev = rows.length > 0 ? rows[0].nev : `ID: ${id}`;
+
+    await db.query("DELETE FROM varos WHERE id = ?", [id]);
+
+    req.session.success_msg = `A(z) '${nev}' nevű város sikeresen törölve.`;
+  } catch (err) {
+    console.error("CRUD törlési hiba:", err);
+    if (err.code === "ER_ROW_IS_REFERENCED_2") {
+      req.session.error_msg =
+        "A várost nem lehet törölni, mert hivatkoznak rá (pl. 'lelekszam' táblából). Előbb törölje a hivatkozásokat.";
+    } else {
+      req.session.error_msg = "Hiba a város törlése közben.";
+    }
+  }
+  res.redirect("/crud");
+});
+
+app.get("/admin", isAdmin, async (req, res) => {
+  try {
+    const [users] = await db.query("SELECT id, username, email, role, created_at FROM users");
+    renderPage(req, res, "admin", { users: users });
+  } catch (err) {
+    console.error("Admin oldal felhasználó lekérdezési hiba:", err);
+    req.session.error_msg = "Hiba a felhasználók listázása közben.";
+    res.redirect("/");
+  }
+});
+
 async function startServer() {
   try {
     db = await mysql.createPool({
